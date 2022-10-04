@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Merge Files</title>
+  </head>
+  <body>
+    <div>
+      <label for="folder">Select folder with JSON files:</label>
+      <input
+        type="file"
+        id="folder"
+        onchange="selectFolder(event)"
+        webkitdirectory
+        mozdirectory
+        msdirectory
+        odirectory
+        directory
+        multiple
+      />
+    </div>
+    <br />
+    <div id="status"></div>
+    <br />
+    <button id="merge" disabled onclick="download()">Download</button>
+  </body>
+  <script>
+    const metadata = [];
+    const BASE_URL = "";
+
+    const download = async () => {
+      const sortedMetadata = metadata
+        .sort((a, b) => a.index - b.index)
+        .map((i) => ({ ...i, index: undefined }));
+
+      const blob = new Blob([JSON.stringify(sortedMetadata)], {
+        type: "application/JSON",
+      });
+      const href = await URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = "metadata.json";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    const mergeFile = (file, i) => {
+      try {
+        const item = JSON.parse(file);
+        if (item) {
+          let attributes = [];
+
+          if (item?.attributes) {
+            attributes = item?.attributes.map((item) => ({
+              trait_type: `${item?.trait_type}`,
+              value: `${item?.value}`,
+            }));
+          }
+
+          const formattedMetadata = {
+            index: i,
+            name: item?.name || `#${i}`,
+            description: item?.description,
+            external_url: item?.external_url,
+            image: `${BASE_URL}/${i}.png`,
+            attributes,
+          };
+
+          metadata.push(formattedMetadata);
+        }
+      } catch (error) {
+        console.log(i, error);
+      }
+    };
+
+    const getNumberName = (filename) => {
+      return parseInt(filename.split(".")[0]);
+    };
+
+    const selectFolder = (e) => {
+      const readFile = (index) => {
+        if (index >= e.target.files.length) {
+          document.getElementById("status").innerHTML = "Files loaded";
+          document.getElementById("merge").disabled = false;
+          return;
+        }
+        var file = e.target.files[index];
+
+        reader.onload = function (e) {
+          const i = getNumberName(file.name);
+          if (!isNaN(i)) {
+            var bin = e.target.result;
+            mergeFile(bin, i);
+          }
+          readFile(index + 1);
+        };
+        reader.readAsBinaryString(file);
+      };
+
+      document.getElementById("status").innerHTML =
+        "Reading and merging files...";
+      const reader = new FileReader();
+      readFile(0);
+    };
+  </script>
+</html>
